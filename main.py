@@ -23,12 +23,13 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 configure(api_key=GEMINI_API_KEY)
 model = GenerativeModel("gemini-1.5-pro")
 
+
 def extract_search_keywords(user_question: str) -> str:
     """Gemini를 사용하여 질문에서 핵심 키워드 2개를 추출하고, '책'을 붙여 반환합니다."""
     prompt = f"""
 다음 문장에서 도서 검색에 사용할 핵심 키워드 **2개**만 뽑아서 공백으로 구분된 한 줄로 출력해주세요.
 불필요한 조사나 어미 없이 명사 위주로만 뽑아야 합니다.
-'추천', '좋은' 등의 **일반적 검색어**는 포함하지 마세요.
+'추천', '좋은', '책', '도서' 등의 일반적인 검색어는 포함하지 마세요.
 문장: "{user_question}"
 """
     response = model.generate_content(prompt)
@@ -37,7 +38,8 @@ def extract_search_keywords(user_question: str) -> str:
     # 안전하게 두 단어만 취해 사용
     parts = keywords.split()
     top2 = parts[:2] if len(parts) >= 2 else parts
-    return "".join(top2) + " 책"
+    return " ".join(top2) + " 책"
+
 
 def run_pipeline(user_question: str) -> dict:
     output = {
@@ -79,10 +81,23 @@ def run_pipeline(user_question: str) -> dict:
             if not candidate_titles:
                 continue
 
+            added = 0  # 최대 3개 제한용 카운터
             for book_title in candidate_titles:
+                if added >= 3:
+                    break
+
                 book_url = search_yes24_book(book_title)
                 if not book_url:
                     continue
+
+                # ── 여기에 공식 도서 제목 덮어쓰기 ──
+                resp = requests.get(book_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+                resp.encoding = "utf-8"
+                soup = BeautifulSoup(resp.text, "html.parser")
+                title_tag = soup.select_one("h2.gd_name")
+                if title_tag:
+                    book_title = title_tag.get_text(strip=True)
+                # ───────────────────────────────────
 
                 author = extract_author_from_yes24(book_url)
                 toc = extract_toc_from_yes24(book_url)
@@ -105,10 +120,10 @@ def run_pipeline(user_question: str) -> dict:
                     "reason": response.text.strip(),
                     "url": book_url
                 })
+                added += 1
 
         # 6. fallback 로직: 추천 결과가 없을 때
         if not output["recommendations"]:
-            # 키워드 쿼리를 그대로 YES24 검색
             fallback_url = search_yes24_book(keyword_query)
             if not fallback_url:
                 output["errors"].append("❌ 적절한 도서를 찾지 못했습니다.")
@@ -117,10 +132,10 @@ def run_pipeline(user_question: str) -> dict:
             author = extract_author_from_yes24(fallback_url)
             toc = extract_toc_from_yes24(fallback_url) or []
             intro = extract_intro_from_yes24(fallback_url)
-            title_tag = BeautifulSoup(
-                requests.get(fallback_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5).text,
-                "html.parser"
-            ).select_one("h2.gd_name")
+            resp = requests.get(fallback_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+            resp.encoding = "utf-8"
+            soup = BeautifulSoup(resp.text, "html.parser")
+            title_tag = soup.select_one("h2.gd_name")
             fallback_title = title_tag.get_text(strip=True) if title_tag else keyword_query
 
             prompt = build_prompt(
@@ -142,6 +157,7 @@ def run_pipeline(user_question: str) -> dict:
         output["errors"].append(f"❌ 처리 중 오류 발생: {str(e)}")
 
     return output
+
 
 if __name__ == "__main__":
     from pprint import pprint

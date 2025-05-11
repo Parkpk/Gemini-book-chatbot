@@ -1,82 +1,51 @@
 import streamlit as st
-import json
 from main import run_pipeline
 
-# Streamlit 앱 설정
-st.set_page_config(page_title="AI 도서 추천 챗봇", page_icon="📚", layout="centered")
-st.title("📚 AI 도서 추천 챗봇")
-st.write("인문, 경제, 과학 등 다양한 분야의 책을 추천받아 보세요.")
+st.set_page_config(page_title="도서 추천 챗봇", layout="wide")
+st.title("📚 AI 도서 추천 with Gemini")
+st.write("질문을 입력하면 책을 추천해드릴게요.")
 
-# 사용자 질문 입력
-user_question = st.text_input(
-    "질문을 입력하세요:",
-    placeholder="예) 철학 입문에 좋은 책 추천해주세요."
-)
+user_question = st.text_input("질문을 입력하세요:", placeholder="예: 철학에 입문하려면 어떤 책이 좋을까요?")
 
-if st.button("추천받기"):
-    if not user_question.strip():
-        st.warning("질문을 입력해주세요.")
-    else:
-        with st.status("도서 추천 분석 중입니다...", expanded=True) as status:
-            result = run_pipeline(user_question)
+if st.button("추천 받기") and user_question.strip():
+    with st.spinner("추천 도서를 찾고 있어요..."):
+        output = run_pipeline(user_question)
 
-            # 오류 메시지 출력
-            if result.get("errors"):
-                for err in result["errors"]:
-                    st.error(err)
+    if output.get("errors"):
+        st.error("\n".join(output["errors"]))
 
-            # 추천 결과 UI 출력 및 텍스트 저장
-            recs = result.get("recommendations", [])
-            txt_lines = []
+    recs = output.get("recommendations", [])
+    fallback = output.get("fallback")
 
-            if recs:
-                st.markdown("### 📚 추천 도서")
-                for rec in recs:
-                    # YES24 도서 페이지 링크로 제목 표시
-                    st.markdown(f"#### [{rec['book_title']}]({rec['url']})")
-                    st.markdown(f"- **저자:** {rec['author']}")
-                    st.markdown(f"- **추천 이유:**\n\n{rec['reason']}")
-                    st.markdown(f"- **도서 페이지:** [{rec['url']}]({rec['url']})")
-                    st.markdown("---")
+    if recs:
+        st.subheader("📚 추천 도서 ")
+        txt_lines = []  # 다운로드용 텍스트 누적
+        for rec in recs[:3]:
+            st.markdown(f"#### [{rec['book_title']}]({rec['url']})")
+            st.markdown(f"- **저자:** {rec['author']}")
+            st.markdown(f"- **추천 이유:**\n\n{rec['reason']}")
+            st.markdown(f"- **도서 페이지:** [{rec['url']}]({rec['url']})")
+            st.markdown("---")
 
-                    # 다운로드용 텍스트 누적
-                    txt_lines.append(f"책 제목: {rec['book_title']}")
-                    txt_lines.append(f"저자: {rec['author']}")
-                    txt_lines.append(f"추천 이유: {rec['reason']}")
-                    txt_lines.append(f"YES24 페이지: {rec['url']}")
-                    txt_lines.append("")
+            txt_lines.append(f"책 제목: {rec['book_title']}")
+            txt_lines.append(f"저자: {rec['author']}")
+            txt_lines.append(f"추천 이유: {rec['reason']}")
+            txt_lines.append(f"YES24 페이지: {rec['url']}")
+            txt_lines.append("")
 
-            # fallback 처리
-            fb = result.get("fallback")
-            if fb:
-                st.warning("⚠️ 기본 추천 도서를 안내드립니다.")
-                st.markdown(f"#### [{fb['book_title']}]({fb['url']})")
-                st.markdown(f"- **저자:** {fb['author']}")
-                st.markdown(f"- **추천 이유:**\n\n{fb['reason']}")
-                st.markdown(f"- **YES24 페이지:** [{fb['url']}]({fb['url']})")
+        st.download_button(
+            label="📄 추천 결과 저장하기",
+            data="\n".join(txt_lines),
+            file_name="book_recommendations.txt",
+            mime="text/plain"
+        )
 
-                txt_lines.append("기본 추천 도서:")
-                txt_lines.append(f"책 제목: {fb['book_title']}")
-                txt_lines.append(f"저자: {fb['author']}")
-                txt_lines.append(f"추천 이유: {fb['reason']}")
-                txt_lines.append(f"YES24 페이지: {fb['url']}")
-                txt_lines.append("")
+    elif fallback:
+        st.subheader("📚 대체 추천 도서")
+        st.markdown(f"#### [{fallback['book_title']}]({fallback['url']})")
+        st.markdown(f"- **저자:** {fallback['author']}")
+        st.markdown(f"- **추천 이유:**\n\n{fallback['reason']}")
+        st.markdown(f"- **도서 페이지:** [{fallback['url']}]({fallback['url']})")
 
-            if not recs and not fb:
-                st.info("😢 추천 가능한 도서를 찾지 못했습니다.")
-
-       
-            # TXT 다운로드 버튼
-            txt_data = "\n".join(txt_lines)
-            st.download_button(
-                label="📄 추천 내용 다운로드",
-                data=txt_data,
-                file_name="recommendation.txt",
-                mime="text/plain"
-            )
-
-            status.update(label="✅ 추천이 완료되었습니다!", state="complete", expanded=False)
-
-# 하단 정보
-st.markdown("---")
-st.markdown("Powered by **Streamlit** & **Gemini API**")
+else:
+    st.info("추천받고 싶은 주제를 입력하고 버튼을 눌러보세요!")
