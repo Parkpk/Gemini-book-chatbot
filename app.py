@@ -3,12 +3,12 @@ from main import run_pipeline
 
 st.set_page_config(page_title="도서 추천 챗봇", layout="wide")
 st.title("📚 AI 도서 추천 with Gemini")
-st.write("질문을 입력하면 책을 추천해드릴게요.")
+st.write("독자 님이 원하실 만한 책을 추천해드릴게요.")
 
-user_question = st.text_input("질문을 입력하세요:", placeholder="예: 철학에 입문하려면 어떤 책이 좋을까요?")
+user_question = st.text_input("자유롭게 질문해주세요:", placeholder="예: 철학에 입문하려면 어떤 책이 좋을까요?")
 
 if st.button("추천 받기") and user_question.strip():
-    with st.spinner("추천 도서를 찾고 있어요..."):
+    with st.spinner("추천 도서를 찾는 중... 최대 1분 정도 소요될 수 있어요."):
         output = run_pipeline(user_question)
 
     if output.get("errors"):
