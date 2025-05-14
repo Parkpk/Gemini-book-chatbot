@@ -25,7 +25,18 @@ def extract_book_titles(article_summary, max_books=3):
     """
     response = model.generate_content(prompt)
     lines = response.text.strip().split("\n")
-    titles = [line.lstrip("- ").strip() for line in lines if line.strip()]
+   
+    # 중복 제거하며 순서 보존
+    seen = set()
+    titles = []
+    for line in lines:
+        title = line.lstrip("- ").strip()
+        if not title or title in seen:
+            continue
+        seen.add(title)
+        titles.append(title)
+        if len(titles) >= max_books:
+            break
     return titles
 
 # 예시 실행 테스트

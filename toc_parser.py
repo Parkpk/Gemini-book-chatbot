@@ -54,6 +54,30 @@ def extract_author_from_yes24(url):
         return ""
     return author_tag.get_text(strip=True)
 
+def extract_cover_from_yes24(url):
+    """
+    YES24 상세페이지에서 도서 커버 이미지 URL을 추출합니다.
+    메타 태그 og:image 우선, 없으면 .goodsBigImg img를 사용합니다.
+    """
+    headers = {"User-Agent": "Mozilla/5.0"}
+    res = requests.get(url, headers=headers, timeout=5)
+    res.encoding = "utf-8"
+    soup = BeautifulSoup(res.text, "html.parser")
+
+    # 1) og:image 메타태그
+    meta = soup.find("meta", property="og:image")
+    if meta and meta.get("content"):
+        return meta["content"]
+
+    # 2) 페이지 내 이미지 태그(.goodsBigImg img)
+    img = soup.select_one(".goodsBigImg img")
+    if img and img.get("src"):
+        src = img["src"]
+        # https 보장
+        return src if src.startswith("http") else f"https:{src}"
+
+    return None
+
 # 테스트 실행
 if __name__ == "__main__":
     url = "https://www.yes24.com/product/goods/145317398"

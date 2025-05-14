@@ -7,6 +7,7 @@ from prompt_builder import build_prompt
 from gemini_book_extractor import extract_book_titles
 from article_selector import select_top_articles
 from google.generativeai import GenerativeModel, configure
+from toc_parser import extract_cover_from_yes24
 
 import os
 from dotenv import load_dotenv
@@ -68,7 +69,8 @@ def run_pipeline(user_question: str) -> dict:
                 text = extract_main_text_from_url(r["url"])
                 articles.append({"title": r["title"], "url": r["url"], "text": text})
             except Exception:
-                output["errors"].append(f"⚠️ 크롤링 실패: {r['url']}")
+                #output["errors"].append(f"⚠️ 크롤링 실패: {r['url']}")
+                continue
 
         # 4. 적절한 글 선택
         selected_articles = select_top_articles(user_question, articles, top_k=3)
@@ -106,6 +108,7 @@ def run_pipeline(user_question: str) -> dict:
                 if not toc:
                     continue
                 intro = extract_intro_from_yes24(book_url)
+                cover = extract_cover_from_yes24(book_url)                
 
                 prompt = build_prompt(
                     user_question,
@@ -121,6 +124,9 @@ def run_pipeline(user_question: str) -> dict:
                     "author": author,
                     "reason": response.text.strip(),
                     "url": book_url
+                    "source": result["url"],
+                    "source_title": result["title"],
+                    "cover_url": cover                    
                 })
                 added += 1
 
