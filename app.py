@@ -31,7 +31,7 @@ if st.button("추천 받기") and user_question.strip():
         st.subheader("📚 추천 도서")
         txt_lines = []
 
-        for rec in recs:
+        for rec in recs[:3]:  # 최대 3개 도서 추천
             # 좌우 3:1 컬럼
             col_text, col_img = st.columns([3, 1])
             with col_text:
@@ -41,7 +41,7 @@ if st.button("추천 받기") and user_question.strip():
                 st.markdown(f"- **도서 페이지:** [{rec['url']}]({rec['url']})")
             with col_img:
                 if rec.get("cover_url"):
-                    st.image(rec["cover_url"], use_column_width=True)
+                    st.image(rec["cover_url"], use_container_width=True)
             st.markdown("---")
 
             # TXT 다운로드용 텍스트 누적
@@ -53,22 +53,13 @@ if st.button("추천 받기") and user_question.strip():
                 ""
             ])
 
-        # 다운로드 버튼 (JSON / TXT)
-        col_dl1, col_dl2 = st.columns(2)
-        with col_dl1:
-            st.download_button(
-                label="📄 JSON 다운로드",
-                data=json.dumps(output, ensure_ascii=False, indent=2),
-                file_name="recommendation.json",
-                mime="application/json"
-            )
-        with col_dl2:
-            st.download_button(
-                label="📄 TXT 다운로드",
-                data="\n".join(txt_lines),
-                file_name="book_recommendations.txt",
-                mime="text/plain"
-            )
+        # TXT 다운로드 버튼만 표시
+        st.download_button(
+            label="📄 TXT 다운로드",
+            data="\n".join(txt_lines),
+            file_name="book_recommendations.txt",
+            mime="text/plain"
+        )
 
     # 추천 결과가 없고 fallback만 있을 때
     elif fallback:
@@ -81,7 +72,7 @@ if st.button("추천 받기") and user_question.strip():
             st.markdown(f"- **도서 페이지:** [{fallback['url']}]({fallback['url']})")
         with col_img:
             if fallback.get("cover_url"):
-                st.image(fallback["cover_url"], use_column_width=True)
+                st.image(fallback["cover_url"], use_container_width=True)
         st.markdown("---")
 
     # 아무 결과도 없을 때

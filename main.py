@@ -123,7 +123,7 @@ def run_pipeline(user_question: str) -> dict:
                     "book_title": book_title,
                     "author": author,
                     "reason": response.text.strip(),
-                    "url": book_url
+                    "url": book_url,
                     "source": result["url"],
                     "source_title": result["title"],
                     "cover_url": cover                    
