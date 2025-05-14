@@ -1,31 +1,38 @@
 import streamlit as st
+import json
 from main import run_pipeline
 
+# 페이지 설정
 st.set_page_config(page_title="도서 추천 챗봇", layout="wide")
 st.title("📚 AI 도서 추천 with Gemini")
 st.write("독자 님이 원하실 만한 책을 추천해드릴게요.")
 
+# 사용자 입력
 user_question = st.text_input(
     "자유롭게 질문해주세요:",
     placeholder="예: 철학에 입문하려면 어떤 책이 좋을까요?"
 )
 
+# 추천 버튼 클릭 시 로직
 if st.button("추천 받기") and user_question.strip():
     with st.spinner("추천 도서를 찾는 중... 최대 1분 정도 소요될 수 있어요."):
         output = run_pipeline(user_question)
 
+    # 에러 출력
     if output.get("errors"):
-        st.error("\n".join(output["errors"]))
+        for err in output["errors"]:
+            st.error(err)
 
     recs = output.get("recommendations", [])
     fallback = output.get("fallback")
 
+    # 추천 도서가 있을 때
     if recs:
         st.subheader("📚 추천 도서")
-        txt_lines = []  # 다운로드용 텍스트 누적
+        txt_lines = []
 
-        for rec in recs[:3]:
-            # 좌우 컬럼 생성: 텍스트 (3) : 이미지 (1)
+        for rec in recs:
+            # 좌우 3:1 컬럼
             col_text, col_img = st.columns([3, 1])
             with col_text:
                 st.markdown(f"#### [{rec['book_title']}]({rec['url']})")
@@ -37,20 +44,33 @@ if st.button("추천 받기") and user_question.strip():
                     st.image(rec["cover_url"], use_column_width=True)
             st.markdown("---")
 
-            # TXT 다운로드용 데이터 누적
-            txt_lines.append(f"책 제목: {rec['book_title']}")
-            txt_lines.append(f"저자: {rec['author']}")
-            txt_lines.append(f"추천 이유: {rec['reason']}")
-            txt_lines.append(f"YES24 페이지: {rec['url']}")
-            txt_lines.append("")
+            # TXT 다운로드용 텍스트 누적
+            txt_lines.extend([
+                f"책 제목: {rec['book_title']}",
+                f"저자: {rec['author']}",
+                f"추천 이유: {rec['reason']}",
+                f"YES24 페이지: {rec['url']}",
+                ""
+            ])
 
-        st.download_button(
-            label="📄 추천 결과 저장하기",
-            data="\n".join(txt_lines),
-            file_name="book_recommendations.txt",
-            mime="text/plain"
-        )
+        # 다운로드 버튼 (JSON / TXT)
+        col_dl1, col_dl2 = st.columns(2)
+        with col_dl1:
+            st.download_button(
+                label="📄 JSON 다운로드",
+                data=json.dumps(output, ensure_ascii=False, indent=2),
+                file_name="recommendation.json",
+                mime="application/json"
+            )
+        with col_dl2:
+            st.download_button(
+                label="📄 TXT 다운로드",
+                data="\n".join(txt_lines),
+                file_name="book_recommendations.txt",
+                mime="text/plain"
+            )
 
+    # 추천 결과가 없고 fallback만 있을 때
     elif fallback:
         st.subheader("📚 대체 추천 도서")
         col_text, col_img = st.columns([3, 1])
@@ -64,8 +84,10 @@ if st.button("추천 받기") and user_question.strip():
                 st.image(fallback["cover_url"], use_column_width=True)
         st.markdown("---")
 
+    # 아무 결과도 없을 때
     else:
         st.info("😢 추천 가능한 도서를 찾지 못했습니다.")
 
+# 버튼을 누르지 않았을 때 안내
 else:
     st.info("추천받고 싶은 주제를 입력하고 버튼을 눌러보세요!")
